@@ -35,3 +35,20 @@ A public HTTPS website can flash pre-built ESP32-S3 firmware in supported browse
 ## Safety
 
 The board has optocoupler-isolated digital inputs and Darlington transistor sinking outputs. DO channels are not mechanical relays. Use compatible field devices, verify supply polarity/current ratings, and follow the official Waveshare documentation before wiring hardware. Demo-mode I/O toggles are visual teaching controls and do not operate a physical board.
+
+
+## Updated Blender GLB model integration
+
+The 3D viewer now loads the finished Waveshare model from `assets/Final_Waveshare.glb` using Three.js `GLTFLoader`. Keep this asset path and filename unchanged, or update the URL in `board3d.js`. The GLB is embedded with its photographic top-label texture and materials.
+
+The website package also removes loose origin-level duplicate meshes and the oversized default `Cube.001` from the active GLB scene. Your original `Final_Waveshare.blend` is not modified.
+
+### Deploying to GitHub Pages
+
+1. Extract this project package.
+2. Upload the contents of this folder to the root of your existing GitHub Pages repository, replacing the previous `board3d.js` and `app.js` and adding the `assets` folder.
+3. Commit and push the changes.
+4. Open the deployed site over HTTPS and check Home, Meet the Board, and Guide.
+5. Test orbit/zoom, each component hotspot, Reset, Pause spin, and Show internals.
+
+`Show internals` continues to use the guide's simplified conceptual internal layout; it is not a scan or verified internal reconstruction of the physical PCB.
