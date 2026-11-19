@@ -3,7 +3,7 @@
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
 
   const parts = {
-    mcu: { group:'Controller', name:'ESP32-S3 module', kicker:'MAIN CONTROLLER', description:'The ESP32-S3 is the controller that runs the application firmware. Waveshare documents a dual-core Xtensa LX7 processor up to 240 MHz with 2.4 GHz Wi-Fi and Bluetooth LE.', tags:['Dual-core LX7','Up to 240 MHz','Wi-Fi + BLE'], note:'The controller sits inside the enclosure. Use the internal view to see its conceptual position.' },
+    mcu: { group:'Controller', name:'ESP32-S3 module', internal:true, kicker:'MAIN CONTROLLER', description:'The ESP32-S3 is the controller that runs the application firmware. Waveshare documents a dual-core Xtensa LX7 processor up to 240 MHz with 2.4 GHz Wi-Fi and Bluetooth LE.', tags:['Dual-core LX7','Up to 240 MHz','Wi-Fi + BLE'], note:'Selecting this item automatically opens the internal PCB reference view, based on the photograph supplied for this board.' },
     di: { group:'Field I/O', name:'Digital inputs · DI1–DI8', kicker:'FIELD INPUTS', description:'Eight optocoupler-isolated digital inputs accept dry-contact or active-switch signals. The supplied practical example uses a push button on DI1.', tags:['8 channels','Optocoupler isolated','Dry contact / active switch'], note:'On a real device, DI states are read from the field wiring. A website cannot force a physical input ON.' },
     do: { group:'Field I/O', name:'Digital outputs · DO1–DO8', kicker:'FIELD OUTPUTS', description:'Eight optocoupler-isolated Darlington transistor outputs are controlled by firmware. Waveshare specifies sinking output current up to 500 mA per channel.', tags:['8 channels','Sinking transistor outputs','Up to 500 mA sink current'], note:'These are transistor outputs, not mechanical relay contacts. Verify the load and wiring against the official manual.' },
     power: { group:'Power', name:'DC power input · 7–36 V', kicker:'POWER INPUT', description:'The removable two-position terminal block provides the wide-range DC supply input. The manufacturer specifies 7–36 V DC, with USB-C and PoE also listed as power options.', tags:['7–36 V DC','Screw terminal','Polarity marked'], note:'Check polarity and the power source rating before energising the controller.' },
@@ -13,7 +13,7 @@
     usb: { group:'Connectivity', name:'USB Type-C', kicker:'PROGRAMMING & DEBUG', description:'USB-C is used for development power, firmware download and debugging. The website can use browser serial access on supported desktop browsers after the correct firmware protocol is installed.', tags:['USB-C','Firmware upload','Serial debug'], note:'The browser-based flasher is planned around a verified merged firmware image and Web Serial.' },
     ethernet: { group:'Connectivity', name:'Ethernet / PoE', kicker:'WIRED NETWORK', description:'The board uses a W5500 Ethernet controller for 10/100 Mbps networking and an IEEE 802.3af PoE module for compatible power-over-Ethernet installations.', tags:['W5500','10/100 Mbps','IEEE 802.3af PoE'], note:'A regular Ethernet switch does not necessarily provide PoE. Use compatible PoE equipment.' },
     antenna: { group:'Connectivity', name:'External antenna', kicker:'WIRELESS', description:'The external antenna supports the board’s Wi-Fi and Bluetooth radio functions.', tags:['External antenna','2.4 GHz Wi-Fi','Bluetooth LE'], note:'Keep the antenna attached and positioned as recommended by the manufacturer.' },
-    buzzer: { group:'Controller', name:'Onboard buzzer', kicker:'AUDIO FEEDBACK', description:'The board includes an onboard buzzer. Waveshare maps its control to GPIO46 in the interface table.', tags:['Onboard component','GPIO46','Audible feedback'], note:'The buzzer can be used for status tones, alerts and the adapted mini-piano lesson.' }
+    buzzer: { group:'Controller', name:'Onboard buzzer', internal:true, kicker:'AUDIO FEEDBACK', description:'The board includes an onboard buzzer. Waveshare maps its control to GPIO46 in the interface table.', tags:['Onboard component','GPIO46','Audible feedback'], note:'Selecting this item automatically opens the internal PCB reference view. The photograph is a visual reference; it is not a component-level 3D reconstruction.' }
   };
 
   const componentGroups = [
@@ -76,34 +76,118 @@
     const nav = $('#main-nav'); nav.classList.toggle('open'); $('#menu-toggle').setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false');
   });
 
-  // Meet the Board component list and detail panel.
+  // Meet the Board: one expandable description lives directly below each
+  // component name. Selecting a row also sends the matching camera focus.
   const list = $('#component-list');
-  list.innerHTML = componentGroups.map(([group, ids]) => `<div class="component-group-label">${group}</div>${ids.map(id => `<button class="component-button" data-part="${id}"><i class="component-dot"></i><span>${parts[id].name}</span><small>↗</small></button>`).join('')}`).join('');
-  function renderPart(id, focus = false) {
-    const part = parts[id] || parts.mcu;
-    $('#detail-kicker').textContent = part.kicker;
-    $('#detail-title').textContent = part.name;
-    $('#detail-description').textContent = part.description;
-    $('#detail-tags').innerHTML = part.tags.map(tag => `<span>${tag}</span>`).join('');
-    $('#detail-note').textContent = part.note;
-    $$('[data-part]').forEach(button => button.classList.toggle('active', button.dataset.part === id));
-    if (focus) window.dispatchEvent(new CustomEvent('board:focus', { detail: { id } }));
-  }
-  list.addEventListener('click', event => {
-    const button = event.target.closest('[data-part]'); if (button) renderPart(button.dataset.part, true);
-  });
-  window.addEventListener('board:component-selected', event => {
-    if (event.detail?.id) renderPart(event.detail.id, false);
-  });
-  renderPart('mcu');
-  $('#meet-reset').addEventListener('click', () => { spin = true; window.dispatchEvent(new CustomEvent('board:reset')); $('#meet-spin').textContent = 'Pause spin'; });
+  let selectedPart = null;
   let spin = true;
+  let internalsShown = false;
+
+  list.innerHTML = componentGroups.map(([group, ids]) => `
+    <section class="component-group">
+      <div class="component-group-label">${group}</div>
+      ${ids.map(id => {
+        const part = parts[id];
+        return `
+          <div class="component-item" data-component-item="${id}">
+            <button class="component-button" type="button" data-part="${id}" aria-expanded="false" aria-controls="component-detail-${id}">
+              <i class="component-dot" aria-hidden="true"></i>
+              <span>${part.name}</span>
+              <small aria-hidden="true">+</small>
+            </button>
+            <div class="component-detail" id="component-detail-${id}" hidden>
+              <p class="eyebrow">${part.kicker}</p>
+              <p class="component-description">${part.description}</p>
+              <div class="detail-tags">${part.tags.map(tag => `<span>${tag}</span>`).join('')}</div>
+              <div class="detail-note">${part.note}</div>
+              ${part.internal ? '<p class="internal-view-note">Selecting this component opens the internal PCB view automatically.</p>' : ''}
+            </div>
+          </div>`;
+      }).join('')}
+    </section>`).join('');
+
+  function updateInternalsButton() {
+    $('#meet-explode').textContent = internalsShown ? 'Hide internals' : 'Show internals';
+  }
+
+  function closeComponentDetails() {
+    selectedPart = null;
+    $$('[data-part]', list).forEach(button => {
+      button.classList.remove('active');
+      button.setAttribute('aria-expanded', 'false');
+      const detail = document.getElementById(button.getAttribute('aria-controls'));
+      if (detail) detail.hidden = true;
+      const marker = button.querySelector('small');
+      if (marker) marker.textContent = '+';
+    });
+  }
+
+  function renderPart(id, focus = false) {
+    const part = parts[id];
+    if (!part) return;
+    selectedPart = id;
+    $$('[data-part]', list).forEach(button => {
+      const active = button.dataset.part === id;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-expanded', active ? 'true' : 'false');
+      const detail = document.getElementById(button.getAttribute('aria-controls'));
+      if (detail) detail.hidden = !active;
+      const marker = button.querySelector('small');
+      if (marker) marker.textContent = active ? '\u2212' : '+';
+    });
+
+    if (focus) {
+      internalsShown = Boolean(part.internal);
+      spin = false;
+      $('#meet-spin').textContent = 'Resume spin';
+      updateInternalsButton();
+      window.dispatchEvent(new CustomEvent('board:focus', { detail: { id } }));
+    }
+  }
+
+  list.addEventListener('click', event => {
+    const button = event.target.closest('[data-part]');
+    if (!button) return;
+    const id = button.dataset.part;
+    if (selectedPart === id) {
+      closeComponentDetails();
+      internalsShown = false;
+      spin = true;
+      $('#meet-spin').textContent = 'Pause spin';
+      updateInternalsButton();
+      window.dispatchEvent(new CustomEvent('board:reset'));
+      return;
+    }
+    renderPart(id, true);
+    button.closest('.component-item')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+
+  $('#meet-reset').addEventListener('click', () => {
+    spin = true;
+    internalsShown = false;
+    updateInternalsButton();
+    $('#meet-spin').textContent = 'Pause spin';
+    window.dispatchEvent(new CustomEvent('board:reset'));
+  });
+
   $('#meet-spin').addEventListener('click', event => {
-    spin = !spin; event.currentTarget.textContent = spin ? 'Pause spin' : 'Resume spin';
+    spin = !spin;
+    event.currentTarget.textContent = spin ? 'Pause spin' : 'Resume spin';
     window.dispatchEvent(new CustomEvent('board:spin', { detail: { enabled: spin } }));
   });
-  let internalsShown = false;
-  $('#meet-explode')?.addEventListener('click', event => { internalsShown = !internalsShown; window.dispatchEvent(new CustomEvent('board:internals', { detail: { show: internalsShown } })); event.currentTarget.textContent = internalsShown ? 'Hide internals' : 'Show internals'; });
+
+  $('#meet-explode')?.addEventListener('click', event => {
+    internalsShown = !internalsShown;
+    if (internalsShown) {
+      spin = false;
+      $('#meet-spin').textContent = 'Resume spin';
+    }
+    updateInternalsButton();
+    if (internalsShown) {
+      renderPart('mcu', false);
+    }
+    window.dispatchEvent(new CustomEvent('board:internals', { detail: { show: internalsShown } }));
+  });
 
   // Guide tabs
   $$('.guide-tab').forEach(tab => tab.addEventListener('click', () => {

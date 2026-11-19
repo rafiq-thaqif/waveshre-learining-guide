@@ -25,3 +25,25 @@
 @media(max-width:430px){.home-copy h1{font-size:36px}.three-host{height:300px}.meet-host{height:390px}.component-groups{grid-template-columns:1fr}.io-grid{grid-template-columns:repeat(2,1fr)}.lesson-index button{width:100%}.wiring-steps p{font-size:10px}}
 .piano-keys{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:16px 0}.piano-key{min-width:34px;height:54px;border-radius:8px;background:#fff;box-shadow:0 3px 0 #dfe4ea}
 .firmware-button{padding:8px 11px;font-size:10px;margin:0 0 8px;cursor:not-allowed;opacity:.55}
+
+/* Meet the Board: expandable component descriptions inside the index. */
+.component-panel{max-height:calc(100vh - 116px);overflow-y:auto;overscroll-behavior:contain}
+.component-groups{display:flex;flex-direction:column;gap:13px}
+.component-group{display:grid;gap:5px}
+.component-group-label{margin:5px 0 3px}
+.component-item{border:1px solid #e7ebf0;border-radius:12px;background:#fff;overflow:hidden}
+.component-item .component-button{border:0;border-radius:0;padding:12px 12px;min-height:44px}
+.component-button span:nth-child(2){line-height:1.35}
+.component-button small{width:20px;height:20px;display:grid;place-items:center;border-radius:50%;font-size:15px;font-weight:600;background:#f2f5f8;color:#718096;flex:0 0 auto}
+.component-item .component-button.active{background:#f0f6fd;color:#145aa7}
+.component-item .component-button.active small{background:#dceafb;color:#145aa7}
+.component-detail{margin:0;padding:0 13px 14px;border:0;border-radius:0;background:#f8fafc}
+.component-detail[hidden]{display:none}
+.component-detail .eyebrow{margin:0 0 7px;padding-top:2px;font-size:9px;letter-spacing:.1em;color:#718096}
+.component-description{margin:0;color:#526174;font-size:12px;line-height:1.65}
+.component-detail .detail-tags{margin:11px 0}
+.component-detail .detail-note{margin-top:8px;font-size:11px;line-height:1.55}
+.internal-view-note{margin:9px 0 0;color:#356b9f;font-size:10px;line-height:1.45}
+.viewer-controls{display:none!important}
+@media(max-width:1050px){.component-panel{max-height:none;overflow:visible}.component-groups{display:flex;grid-template-columns:none}}
+@media(max-width:760px){.component-panel{max-height:none}.component-groups{grid-template-columns:1fr}}

@@ -52,3 +52,12 @@ The website package also removes loose origin-level duplicate meshes and the ove
 5. Test orbit/zoom, each component hotspot, Reset, Pause spin, and Show internals.
 
 `Show internals` continues to use the guide's simplified conceptual internal layout; it is not a scan or verified internal reconstruction of the physical PCB.
+
+## Meet the Board interaction update
+
+The current Meet the Board revision uses the Component Index as the only component-selection method. Selecting a component expands its explanation below the component name and moves the 3D camera to the corresponding model part. Floating hotspot markers have been removed.
+
+Selecting an internal component (ESP32-S3 module or onboard buzzer) automatically switches to an internal PCB reference view. This view uses `assets/actual-pcb-reference.png`, a crop of the supplied real-board photograph. It is a photographic reference rather than a complete 3D PCB reconstruction.
+
+Only one toolbar is used: Reset view, Pause/Resume spin, and Show/Hide internals.
+See `MEET_BOARD_UPDATE_NOTES.md` for the details.

@@ -73,25 +73,19 @@
     <!-- MEET THE BOARD -->
     <section class="view" id="view-meet">
       <div class="shell page-heading">
-        <div><p class="eyebrow">Interactive 3D explorer</p><h1>Meet the Board</h1><p>Choose a component to stop the rotation and move the camera in for a closer look.</p></div>
+        <div><p class="eyebrow">Interactive 3D explorer</p><h1>Meet the Board</h1><p>Select a component in the index to zoom in and reveal its explanation.</p></div>
         <div class="dimension-note"><strong>175 × 90 × 40 mm</strong><span>Manufacturer's published enclosure dimensions</span></div>
       </div>
       <div class="shell meet-layout">
         <div class="model-stage card">
           <div class="stage-toolbar"><span class="stage-status"><i></i> 3D INTERACTIVE MODEL</span><div><button class="small-button" id="meet-reset">Reset view</button><button class="small-button" id="meet-spin">Pause spin</button><button class="small-button" id="meet-explode">Show internals</button></div></div>
           <div class="three-host meet-host" id="meet-model" data-viewer="meet" aria-label="Interactive three dimensional Waveshare ESP32-S3-POE-ETH-8DI-8DO model"></div>
-          <div class="stage-instructions"><span>Drag to orbit</span><span>Scroll to zoom</span><span>Select a hotspot or component</span></div>
+          <div class="stage-instructions"><span>Drag to orbit</span><span>Scroll to zoom</span><span>Choose a component from the index</span></div>
         </div>
         <aside class="component-panel card">
           <div class="panel-top"><div><p class="eyebrow">Component index</p><h2>Explore parts</h2></div><span class="part-count">11 PARTS</span></div>
           <div class="component-groups" id="component-list"></div>
-          <div class="component-detail" id="component-detail" aria-live="polite">
-            <p class="eyebrow" id="detail-kicker">MAIN CONTROLLER</p>
-            <h3 id="detail-title">ESP32-S3 module</h3>
-            <p id="detail-description">Select a component to view its function and connection notes.</p>
-            <div class="detail-tags" id="detail-tags"></div>
-            <div class="detail-note" id="detail-note"></div>
-          </div>
+
         </aside>
       </div>
     </section>

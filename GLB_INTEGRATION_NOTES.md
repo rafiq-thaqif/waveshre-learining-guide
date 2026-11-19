@@ -1,36 +1,27 @@
-# GLB integration notes
+# GLB integration and Meet the Board notes
 
-The site now loads the finished Blender model from `assets/Final_Waveshare.glb` using Three.js `GLTFLoader`.
+The 3D viewer loads `assets/Final_Waveshare.glb` using Three.js `GLTFLoader`.
 
-## What changed
+## Current Meet the Board behaviour
 
-- Replaced the procedural exterior board in the three.js viewer with the supplied Blender GLB.
-- Preserved the existing Home, Meet the Board, and Guide viewers.
-- Repositioned the existing component hotspots by reading the named GLB objects at runtime, so the markers follow the actual model geometry.
-- Added an Auxiliary signal terminals hotspot for the rear eight-way terminal block.
-- Preserved the existing Reset, Pause spin, orbit/zoom, and Show internals controls.
-- The Show internals view still uses the original simplified conceptual internal layout; it is not a verified scan of the physical PCB.
+- The floating hotspot sprites have been removed.
+- The Component Index is the only component-selection interface.
+- Selecting a component expands its description directly below that component name and animates the camera towards the corresponding GLB object.
+- The ESP32-S3 module and onboard buzzer are treated as internal components. Selecting either automatically opens the internal PCB reference view.
+- The internal view uses `assets/actual-pcb-reference.png`, cropped from the user-supplied photograph. The enclosure is made translucent and duplicate exterior terminal/port meshes are hidden while the photo is visible.
+- The internal image is a photographic reference plane, not a fully modelled or dimensionally verified 3D PCB.
+- The toolbar is defined once in the HTML stage header. `board3d.js` does not create another toolbar.
 
-## Cleanup applied to the website GLB
+## Model notes
 
-The supplied GLB had seven loose scene-root objects at the origin: six duplicate connector detail meshes and a 2 m `Cube.001`. The website copy's active scene now references only the `world` collection containing the assembled Waveshare model. The embedded image, materials, and assembled model geometry are retained. The uploaded `.blend` file was not changed.
+- The GLB is scaled for the viewer and centred using the named mounting base plate.
+- The stray `Cube.001` object is excluded from the viewer scene.
+- External focus positions are calculated from the named GLB mesh bounds at runtime.
+- Internal focus coordinates are approximate visual targets on the PCB photograph.
 
-## Deploy
+## Files
 
-1. Extract the ZIP.
-2. Open the `waveshare-digital-twin` folder.
-3. Upload its contents to the root of the existing GitHub Pages repository, replacing `board3d.js` and `app.js` and adding `assets/Final_Waveshare.glb`.
-4. Commit and push.
-5. Open the published site over HTTPS and test Home, Meet the Board, and Guide.
-
-Do not rename or move `assets/Final_Waveshare.glb` unless you also update the URL in `board3d.js`.
-
-## Test checklist
-
-- Home 3D preview loads and rotates.
-- Meet the Board loads the same model.
-- Hotspots for DI, DO, power, RS485, CAN, auxiliary terminals, USB-C, Ethernet, antenna, ESP32-S3, and buzzer work.
-- Component list selection moves the camera to the matching hotspot.
-- Reset and Pause spin work.
-- Show internals reveals the simplified conceptual internal layout through the translucent enclosure.
-- Guide's small 3D reference model loads.
+- `assets/Final_Waveshare.glb` - exterior Waveshare model.
+- `assets/actual-pcb-reference.png` - photographic internal PCB reference.
+- `board3d.js` - Three.js model loading, camera focus and internal-view behaviour.
+- `app.js` - component accordion and control events.
