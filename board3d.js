@@ -19,15 +19,6 @@ const PARTS = {
   buzzer: { internalName: 'Internal - Onboard buzzer', internal: true }
 };
 
-const FADE_PREFIXES = [
-  '01 - Mounting base plate',
-  '02 - Main enclosure shell',
-  '03 - Mounting ear',
-  '05 - Mounting hole rim',
-  '15 - Side vent',
-  '16 - Red underside latch',
-  '17 - Underside inset panel'
-];
 const HIDE_PREFIXES = ['04 - Top printed label decal'];
 
 const mat = (color, roughness = 0.65, metalness = 0.05) =>
@@ -243,33 +234,6 @@ function createInternalModel() {
   return group;
 }
 
-function makeSelectionHighlight(bounds) {
-  const center = bounds.getCenter(new THREE.Vector3());
-  const size = bounds.getSize(new THREE.Vector3());
-  size.add(new THREE.Vector3(3.2, 3.2, 3.2));
-  const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
-  const group = new THREE.Group();
-  group.name = 'Selected component soft highlight';
-  group.position.copy(center);
-
-  const fill = new THREE.Mesh(
-    geometry,
-    new THREE.MeshBasicMaterial({ color: '#43b8ff', transparent: true, opacity: 0.045, depthWrite: false, depthTest: false, side: THREE.BackSide })
-  );
-  const outerEdges = new THREE.LineSegments(
-    new THREE.EdgesGeometry(new THREE.BoxGeometry(size.x + 1.8, size.y + 1.8, size.z + 1.8)),
-    new THREE.LineBasicMaterial({ color: '#55bfff', transparent: true, opacity: 0.18, depthTest: false })
-  );
-  const innerEdges = new THREE.LineSegments(
-    new THREE.EdgesGeometry(geometry),
-    new THREE.LineBasicMaterial({ color: '#48baff', transparent: true, opacity: 0.62, depthTest: false })
-  );
-  group.add(fill, outerEdges, innerEdges);
-  group.userData.pulseMaterials = [fill.material, outerEdges.material, innerEdges.material];
-  group.userData.geometry = geometry;
-  return group;
-}
-
 const gltfLoader = new GLTFLoader();
 const modelUrl = new URL('./assets/Final_Waveshare.glb', import.meta.url).href;
 const gltfPromise = gltfLoader.loadAsync(modelUrl);
@@ -342,10 +306,13 @@ async function createViewer(host) {
   let internalGroup = null;
   let controls;
   let cameraAnimation = null;
-  let highlightGroup = null;
+  let highlightedMaterials = [];
+  let selectionLight = null;
+  let selectionPulseStart = 0;
   let inView = true;
   let viewerHint = null;
-  const fadeMaterialStates = [];
+  const exteriorMaterialStates = [];
+  const exteriorObjectStates = [];
   const hiddenObjectStates = [];
 
   try {
@@ -399,19 +366,29 @@ async function createViewer(host) {
   if (mode === 'meet') {
     internalGroup = createInternalModel();
     internalGroup.visible = false;
+    // Keep the simplified PCB within the physical enclosure footprint.
+    // The original 156 x 90 mm board filled the mounting plate and appeared
+    // to protrude beyond the enclosure in the transparent view.
+    internalGroup.scale.set(0.92, 1, 0.72);
     modelRoot.add(internalGroup);
     modelRoot.updateMatrixWorld(true);
   }
 
   glbRoot.traverse(object => {
-    if (!object.isMesh || !object.material) return;
-    const materials = Array.isArray(object.material) ? object.material : [object.material];
-    if (FADE_PREFIXES.some(prefix => object.name.startsWith(prefix))) {
-      materials.forEach(material => fadeMaterialStates.push({
+    if (!object.isMesh) return;
+    exteriorObjectStates.push({
+      object,
+      castShadow: object.castShadow,
+      receiveShadow: object.receiveShadow
+    });
+    if (object.material) {
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.forEach(material => exteriorMaterialStates.push({
         material,
         transparent: material.transparent,
         opacity: material.opacity,
-        depthWrite: material.depthWrite
+        depthWrite: material.depthWrite,
+        alphaTest: material.alphaTest
       }));
     }
     if (HIDE_PREFIXES.some(prefix => object.name.startsWith(prefix))) {
@@ -426,11 +403,18 @@ async function createViewer(host) {
       ? 'Internal view: simplified 3D PCB reconstruction'
       : 'Choose a component from the index to zoom in';
 
-    fadeMaterialStates.forEach(state => {
+    // Fade every exterior mesh, not only a short list of enclosure pieces.
+    // This makes the PCB and its components visible through the complete case.
+    exteriorMaterialStates.forEach(state => {
       state.material.transparent = show ? true : state.transparent;
-      state.material.opacity = show ? Math.min(state.opacity, 0.13) : state.opacity;
+      state.material.opacity = show ? Math.min(state.opacity, 0.12) : state.opacity;
       state.material.depthWrite = show ? false : state.depthWrite;
+      state.material.alphaTest = show ? 0 : state.alphaTest;
       state.material.needsUpdate = true;
+    });
+    exteriorObjectStates.forEach(state => {
+      state.object.castShadow = show ? false : state.castShadow;
+      state.object.receiveShadow = show ? false : state.receiveShadow;
     });
     hiddenObjectStates.forEach(state => { state.object.visible = show ? false : state.visible; });
   }
@@ -461,21 +445,58 @@ async function createViewer(host) {
     return new THREE.Box3(fallback.clone().addScalar(-5), fallback.clone().addScalar(5));
   }
 
-  function clearHighlight() {
-    if (!highlightGroup) return;
-    scene.remove(highlightGroup);
-    highlightGroup.traverse(object => {
-      if (object.geometry && object.geometry !== highlightGroup.userData.geometry) object.geometry.dispose();
-      if (object.material) object.material.dispose();
-    });
-    highlightGroup.userData.geometry?.dispose();
-    highlightGroup = null;
+  function getPartMeshes(part) {
+    const meshes = [];
+    if (part.internal && internalGroup) {
+      const component = internalGroup.getObjectByName(part.internalName);
+      if (component) component.traverse(object => { if (object.isMesh) meshes.push(object); });
+      return meshes;
+    }
+    if (part.prefixes) {
+      glbRoot.traverse(object => {
+        if (object.isMesh && part.prefixes.some(prefix => object.name.startsWith(prefix))) meshes.push(object);
+      });
+    }
+    return meshes;
   }
 
-  function setHighlight(bounds) {
+  function clearHighlight() {
+    highlightedMaterials.forEach(state => {
+      if (state.material.emissive) state.material.emissive.copy(state.emissive);
+      if ('emissiveIntensity' in state.material) state.material.emissiveIntensity = state.originalEmissiveIntensity;
+      state.material.needsUpdate = true;
+    });
+    highlightedMaterials = [];
+    if (selectionLight) {
+      scene.remove(selectionLight);
+      selectionLight = null;
+    }
+  }
+
+  function setHighlight(part, bounds) {
     clearHighlight();
-    highlightGroup = makeSelectionHighlight(bounds);
-    scene.add(highlightGroup);
+    const glowColor = new THREE.Color('#58c8ff');
+    getPartMeshes(part).forEach(mesh => {
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      materials.forEach(material => {
+        if (!material || !material.emissive) return;
+        highlightedMaterials.push({
+          material,
+          emissive: material.emissive.clone(),
+          originalEmissiveIntensity: material.emissiveIntensity ?? 1
+        });
+        material.emissive.copy(glowColor);
+        material.emissiveIntensity = 0.12;
+        material.needsUpdate = true;
+      });
+    });
+
+    // A low-intensity point light adds a soft halo around the actual component;
+    // unlike the previous wireframe box, it does not draw a cube around it.
+    selectionLight = new THREE.PointLight(glowColor, 0.12, 38, 2);
+    selectionLight.position.copy(bounds.getCenter(new THREE.Vector3()));
+    scene.add(selectionLight);
+    selectionPulseStart = performance.now();
   }
 
   const controlsTarget = new THREE.Vector3(0, 22, 0);
@@ -499,7 +520,7 @@ async function createViewer(host) {
     const bounds = getPartBounds(part, id);
     const target = bounds.getCenter(new THREE.Vector3());
     const size = bounds.getSize(new THREE.Vector3());
-    setHighlight(bounds);
+    setHighlight(part, bounds);
 
     let direction;
     if (part.internal) {
@@ -593,12 +614,13 @@ async function createViewer(host) {
       controls.target.lerpVectors(cameraAnimation.fromTarget, cameraAnimation.toTarget, eased);
       if (t >= 1) cameraAnimation = null;
     }
-    if (highlightGroup) {
-      const pulse = (Math.sin((now / 2800) * Math.PI * 2 - Math.PI / 2) + 1) / 2;
-      const materials = highlightGroup.userData.pulseMaterials;
-      materials[0].opacity = 0.025 + pulse * 0.045;
-      materials[1].opacity = 0.12 + pulse * 0.20;
-      materials[2].opacity = 0.38 + pulse * 0.42;
+    if (highlightedMaterials.length || selectionLight) {
+      // One calm pulse every 2.8 seconds; no rapid flashing.
+      const pulse = (Math.sin(((now - selectionPulseStart) / 2800) * Math.PI * 2 - Math.PI / 2) + 1) / 2;
+      highlightedMaterials.forEach(state => {
+        state.material.emissiveIntensity = 0.12 + pulse * 0.48;
+      });
+      if (selectionLight) selectionLight.intensity = 0.08 + pulse * 0.34;
     }
     controls.update();
     renderer.render(scene, camera);
