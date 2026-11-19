@@ -1,27 +1,25 @@
 # GLB integration and Meet the Board notes
 
-The 3D viewer loads `assets/Final_Waveshare.glb` using Three.js `GLTFLoader`.
+The viewer loads `assets/Final_Waveshare.glb` with Three.js `GLTFLoader`.
 
-## Current Meet the Board behaviour
+## Component focus correction
 
-- The floating hotspot sprites have been removed.
-- The Component Index is the only component-selection interface.
-- Selecting a component expands its description directly below that component name and animates the camera towards the corresponding GLB object.
-- The ESP32-S3 module and onboard buzzer are treated as internal components. Selecting either automatically opens the internal PCB reference view.
-- The internal view uses `assets/actual-pcb-reference.png`, cropped from the user-supplied photograph. The enclosure is made translucent and duplicate exterior terminal/port meshes are hidden while the photo is visible.
-- The internal image is a photographic reference plane, not a fully modelled or dimensionally verified 3D PCB.
-- The toolbar is defined once in the HTML stage header. `board3d.js` does not create another toolbar.
+Component focus now finds all meshes whose names begin with the component's GLB prefix, updates their world matrices, unions their world-space bounding boxes and uses the resulting centre to drive the camera. This prevents the camera from silently falling back to the board centre when a component consists of multiple meshes.
 
-## Model notes
+The camera approaches the front or rear edge from the corresponding side of the board. Focus distance is derived from the selected assembly's bounds.
 
-- The GLB is scaled for the viewer and centred using the named mounting base plate.
-- The stray `Cube.001` object is excluded from the viewer scene.
-- External focus positions are calculated from the named GLB mesh bounds at runtime.
-- Internal focus coordinates are approximate visual targets on the PCB photograph.
+## Selection highlight
 
-## Files
+A bounding outline and subtle translucent fill pulse slowly around the selected component. The pulse period is 2.8 seconds; it is intentionally gentle rather than a fast flash. The highlight is cleared on Reset view.
 
-- `assets/Final_Waveshare.glb` - exterior Waveshare model.
-- `assets/actual-pcb-reference.png` - photographic internal PCB reference.
-- `board3d.js` - Three.js model loading, camera focus and internal-view behaviour.
-- `app.js` - component accordion and control events.
+## Internal model
+
+The internal view is generated entirely from Three.js 3D geometry. It includes a blue PCB substrate, mounting holes, ESP32-S3 RF shield/module, W5500 controller, digital input isolator banks, output driver banks, CAN and RS485 interface ICs, power regulator/inductor, capacitors, RTC coin cell, GPIO header, reset switch, onboard buzzer and representative SMD components.
+
+No supplied photograph is used as a plane or texture in the internal view. The simplified board layout is oriented to match the external model's front and rear terminal positions. It is a learning representation, not precision engineering CAD.
+
+In internal mode, the enclosure/base/mounting details become translucent, the top printed decal is hidden, and the existing GLB terminal blocks and ports remain visible. This avoids replacing real geometry with a flat picture.
+
+## Toolbar
+
+The single toolbar remains in the HTML stage header. `board3d.js` does not create a second toolbar.

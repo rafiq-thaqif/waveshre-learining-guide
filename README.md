@@ -1,63 +1,49 @@
 # Waveshare ESP32-S3-POE-ETH-8DI-8DO Digital Twin
 
-This is a static GitHub Pages website with a custom Three.js model. The 3D enclosure is built from individual Three.js geometries (case, mounting flange, terminal blocks, screws, ports, vents, antenna, latches and internal components). The supplied reference photographs are not mapped onto the 3D enclosure.
+Static GitHub Pages learning guide using Three.js and the user's Blender-exported Waveshare GLB.
 
 ## Website sections
 
-- **Home** – minimal landing page with a slowly rotating 3D model.
-- **Meet the Board** – component list, clickable 3D hotspots, camera focus/zoom and a conceptual internal view.
-- **Guide** – Local I/O Control, Wi-Fi AP, Wi-Fi STA, MQTT & Node-RED. A small 3D model remains visible in the Guide header.
-- **Lessons** – adapted versions of reference Lessons 2–6.
-- **Reference** – official Waveshare links and source material.
+- **Home** - landing page and rotating 3D model.
+- **Meet the Board** - component index with expandable descriptions and camera focus.
+- **Guide** - Local I/O Control, Wi-Fi AP, Wi-Fi STA, MQTT & Node-RED.
+- **Lessons** - adapted practical exercises.
+- **Reference** - board documentation and reference material.
+
+## Meet the Board interactions
+
+- Floating hotspot sprites are removed. The Component Index is the only component-selection method.
+- Selecting a component expands its description directly beneath its name.
+- The camera frames the full named GLB component assembly using its world-space bounding box.
+- The selected assembly receives a slow, soft blue pulsing outline.
+- Selecting the ESP32-S3 module or onboard buzzer opens the simplified 3D PCB view automatically.
+- The internal view is built from 3D geometry (PCB, module, ICs, transceivers, power components, capacitors, headers, reset switch and buzzer). No photograph is used as the internal model.
+- The top label decal is hidden in internal view, while the enclosure becomes translucent and the real terminal/port meshes remain visible.
+- There is one toolbar only: Reset view, Pause/Resume spin, Show/Hide internals.
+
+The PCB is a simplified educational reconstruction based on the supplied reference photograph. It is not precision CAD and should not be used for engineering measurements or board repair.
+
+## Files
+
+- `assets/Final_Waveshare.glb` - final exterior Waveshare model.
+- `board3d.js` - GLB loading, world-space component focus, pulsing highlight and simplified 3D internal model.
+- `app.js` - component index, accordion descriptions and viewer controls.
+- `styles.css` - website styling.
+- `index.html` - GitHub Pages entry point.
+- `Waveshare-Digital-Twin.html` - alternate HTML entry file retained from the project.
 
 ## Run locally
 
-Because the site uses ES modules and Three.js, run it from a local HTTP server (for example VS Code Live Server) or publish it through HTTPS on GitHub Pages. Do not open `index.html` directly with `file://`.
+Use an HTTP server such as VS Code Live Server. Do not open `index.html` with `file://`, because the site uses JavaScript modules and GLB assets.
 
-## GitHub Pages
+## GitHub Pages deployment
 
-Upload the contents of this folder to the repository root. Keep `index.html`, `styles.css`, `app.js`, `board3d.js` and `.nojekyll` at the same level. No photo texture folder is required for the new 3D model.
+Upload the contents of this folder to the repository root. Keep `assets/Final_Waveshare.glb` at that exact path. Keep `.nojekyll` and the existing firmware folder. Do not upload the editable `.blend` file to the website repository.
 
-## Hardware connection status
+## Browser USB connection and firmware
 
-The Guide includes a browser USB serial bridge interface. It currently expects a companion firmware protocol:
-
-- Device reports one JSON object per line: `{"type":"io","di":[0,0,0,0,0,0,0,0],"do":[0,0,0,0,0,0,0,0]}`
-- Website requests state with: `{"cmd":"get_state"}`
-- Website commands an output with: `{"cmd":"set_do","channel":1,"state":1}`
-
-The previous Arduino demo package is not enough by itself to guarantee this serial protocol. The official Waveshare demo ZIP must be inspected so a companion firmware can be built against the correct board libraries and I/O behaviour.
-
-## Browser firmware upload
-
-A public HTTPS website can flash pre-built ESP32-S3 firmware in supported browsers using Web Serial and a browser flasher such as esptool-js / ESP Web Tools. A static website cannot compile arbitrary ESP32 source code by itself. For a no-Arduino user experience, build and publish verified `.bin` images (for example with a CI build pipeline), then let the website install those images. The exact merged image, flash layout and board configuration must be verified against the official demo package before enabling a flash button.
+The Guide's browser USB serial interface requires companion firmware implementing the documented JSON serial protocol. The browser firmware installer is not enabled until a verified merged firmware image and correct board flash layout are prepared.
 
 ## Safety
 
-The board has optocoupler-isolated digital inputs and Darlington transistor sinking outputs. DO channels are not mechanical relays. Use compatible field devices, verify supply polarity/current ratings, and follow the official Waveshare documentation before wiring hardware. Demo-mode I/O toggles are visual teaching controls and do not operate a physical board.
-
-
-## Updated Blender GLB model integration
-
-The 3D viewer now loads the finished Waveshare model from `assets/Final_Waveshare.glb` using Three.js `GLTFLoader`. Keep this asset path and filename unchanged, or update the URL in `board3d.js`. The GLB is embedded with its photographic top-label texture and materials.
-
-The website package also removes loose origin-level duplicate meshes and the oversized default `Cube.001` from the active GLB scene. Your original `Final_Waveshare.blend` is not modified.
-
-### Deploying to GitHub Pages
-
-1. Extract this project package.
-2. Upload the contents of this folder to the root of your existing GitHub Pages repository, replacing the previous `board3d.js` and `app.js` and adding the `assets` folder.
-3. Commit and push the changes.
-4. Open the deployed site over HTTPS and check Home, Meet the Board, and Guide.
-5. Test orbit/zoom, each component hotspot, Reset, Pause spin, and Show internals.
-
-`Show internals` continues to use the guide's simplified conceptual internal layout; it is not a scan or verified internal reconstruction of the physical PCB.
-
-## Meet the Board interaction update
-
-The current Meet the Board revision uses the Component Index as the only component-selection method. Selecting a component expands its explanation below the component name and moves the 3D camera to the corresponding model part. Floating hotspot markers have been removed.
-
-Selecting an internal component (ESP32-S3 module or onboard buzzer) automatically switches to an internal PCB reference view. This view uses `assets/actual-pcb-reference.png`, a crop of the supplied real-board photograph. It is a photographic reference rather than a complete 3D PCB reconstruction.
-
-Only one toolbar is used: Reset view, Pause/Resume spin, and Show/Hide internals.
-See `MEET_BOARD_UPDATE_NOTES.md` for the details.
+Verify all power polarity, voltage, current ratings and terminal functions against the official Waveshare documentation before wiring. The board's digital outputs are sinking transistor outputs, not mechanical relays.

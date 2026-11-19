@@ -3,7 +3,7 @@
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
 
   const parts = {
-    mcu: { group:'Controller', name:'ESP32-S3 module', internal:true, kicker:'MAIN CONTROLLER', description:'The ESP32-S3 is the controller that runs the application firmware. Waveshare documents a dual-core Xtensa LX7 processor up to 240 MHz with 2.4 GHz Wi-Fi and Bluetooth LE.', tags:['Dual-core LX7','Up to 240 MHz','Wi-Fi + BLE'], note:'Selecting this item automatically opens the internal PCB reference view, based on the photograph supplied for this board.' },
+    mcu: { group:'Controller', name:'ESP32-S3 module', internal:true, kicker:'MAIN CONTROLLER', description:'The ESP32-S3 is the controller that runs the application firmware. Waveshare documents a dual-core Xtensa LX7 processor up to 240 MHz with 2.4 GHz Wi-Fi and Bluetooth LE.', tags:['Dual-core LX7','Up to 240 MHz','Wi-Fi + BLE'], note:'Selecting this item opens a simplified 3D reconstruction of the PCB and its major components. It is an educational model, not an exact engineering CAD reproduction.' },
     di: { group:'Field I/O', name:'Digital inputs · DI1–DI8', kicker:'FIELD INPUTS', description:'Eight optocoupler-isolated digital inputs accept dry-contact or active-switch signals. The supplied practical example uses a push button on DI1.', tags:['8 channels','Optocoupler isolated','Dry contact / active switch'], note:'On a real device, DI states are read from the field wiring. A website cannot force a physical input ON.' },
     do: { group:'Field I/O', name:'Digital outputs · DO1–DO8', kicker:'FIELD OUTPUTS', description:'Eight optocoupler-isolated Darlington transistor outputs are controlled by firmware. Waveshare specifies sinking output current up to 500 mA per channel.', tags:['8 channels','Sinking transistor outputs','Up to 500 mA sink current'], note:'These are transistor outputs, not mechanical relay contacts. Verify the load and wiring against the official manual.' },
     power: { group:'Power', name:'DC power input · 7–36 V', kicker:'POWER INPUT', description:'The removable two-position terminal block provides the wide-range DC supply input. The manufacturer specifies 7–36 V DC, with USB-C and PoE also listed as power options.', tags:['7–36 V DC','Screw terminal','Polarity marked'], note:'Check polarity and the power source rating before energising the controller.' },
@@ -13,7 +13,7 @@
     usb: { group:'Connectivity', name:'USB Type-C', kicker:'PROGRAMMING & DEBUG', description:'USB-C is used for development power, firmware download and debugging. The website can use browser serial access on supported desktop browsers after the correct firmware protocol is installed.', tags:['USB-C','Firmware upload','Serial debug'], note:'The browser-based flasher is planned around a verified merged firmware image and Web Serial.' },
     ethernet: { group:'Connectivity', name:'Ethernet / PoE', kicker:'WIRED NETWORK', description:'The board uses a W5500 Ethernet controller for 10/100 Mbps networking and an IEEE 802.3af PoE module for compatible power-over-Ethernet installations.', tags:['W5500','10/100 Mbps','IEEE 802.3af PoE'], note:'A regular Ethernet switch does not necessarily provide PoE. Use compatible PoE equipment.' },
     antenna: { group:'Connectivity', name:'External antenna', kicker:'WIRELESS', description:'The external antenna supports the board’s Wi-Fi and Bluetooth radio functions.', tags:['External antenna','2.4 GHz Wi-Fi','Bluetooth LE'], note:'Keep the antenna attached and positioned as recommended by the manufacturer.' },
-    buzzer: { group:'Controller', name:'Onboard buzzer', internal:true, kicker:'AUDIO FEEDBACK', description:'The board includes an onboard buzzer. Waveshare maps its control to GPIO46 in the interface table.', tags:['Onboard component','GPIO46','Audible feedback'], note:'Selecting this item automatically opens the internal PCB reference view. The photograph is a visual reference; it is not a component-level 3D reconstruction.' }
+    buzzer: { group:'Controller', name:'Onboard buzzer', internal:true, kicker:'AUDIO FEEDBACK', description:'The board includes an onboard buzzer. Waveshare maps its control to GPIO46 in the interface table.', tags:['Onboard component','GPIO46','Audible feedback'], note:'Selecting this item opens the simplified 3D internal view and focuses on the buzzer. Its shape and position are represented for learning, not as a precision CAD part.' }
   };
 
   const componentGroups = [
@@ -100,7 +100,7 @@
               <p class="component-description">${part.description}</p>
               <div class="detail-tags">${part.tags.map(tag => `<span>${tag}</span>`).join('')}</div>
               <div class="detail-note">${part.note}</div>
-              ${part.internal ? '<p class="internal-view-note">Selecting this component opens the internal PCB view automatically.</p>' : ''}
+              ${part.internal ? '<p class="internal-view-note">Selecting this component opens the simplified 3D internal view automatically.</p>' : ''}
             </div>
           </div>`;
       }).join('')}
