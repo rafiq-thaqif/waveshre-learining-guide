@@ -252,11 +252,6 @@ async function createViewer(host) {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   host.appendChild(renderer.domElement);
 
-  const loading = document.createElement('div');
-  loading.className = 'viewer-hint';
-  loading.textContent = 'Loading Waveshare 3D model...';
-  host.appendChild(loading);
-
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(34, width / height, 0.1, 1200);
   camera.position.set(245, 170, 265);
@@ -307,10 +302,10 @@ async function createViewer(host) {
   let controls;
   let cameraAnimation = null;
   let highlightedMaterials = [];
+  let highlightOverlays = [];
   let selectionLight = null;
   let selectionPulseStart = 0;
   let inView = true;
-  let viewerHint = null;
   const exteriorMaterialStates = [];
   const exteriorObjectStates = [];
   const hiddenObjectStates = [];
@@ -341,7 +336,10 @@ async function createViewer(host) {
     });
   } catch (error) {
     console.error('Unable to load the Waveshare GLB:', error);
-    loading.textContent = 'The 3D model could not be loaded. Check that assets/Final_Waveshare.glb is present.';
+    const errorNotice = document.createElement('div');
+    errorNotice.className = 'viewer-error';
+    errorNotice.textContent = 'The 3D model could not be loaded. Check assets/Final_Waveshare.glb.';
+    host.appendChild(errorNotice);
     return;
   }
 
@@ -369,7 +367,10 @@ async function createViewer(host) {
     // Keep the simplified PCB within the physical enclosure footprint.
     // The original 156 x 90 mm board filled the mounting plate and appeared
     // to protrude beyond the enclosure in the transparent view.
-    internalGroup.scale.set(0.92, 1, 0.72);
+    internalGroup.scale.set(0.92, 1, 0.65);
+    // In the viewer's orientation, negative Z is toward the far/top edge.
+    // A small rearward shift plus a narrower depth keeps the PCB within the shell.
+    internalGroup.position.set(0, 0, -3.0);
     modelRoot.add(internalGroup);
     modelRoot.updateMatrixWorld(true);
   }
@@ -399,10 +400,6 @@ async function createViewer(host) {
   function setInternals(show) {
     if (!internalGroup) return;
     internalGroup.visible = show;
-    if (viewerHint) viewerHint.textContent = show
-      ? 'Internal view: simplified 3D PCB reconstruction'
-      : 'Choose a component from the index to zoom in';
-
     // Fade every exterior mesh, not only a short list of enclosure pieces.
     // This makes the PCB and its components visible through the complete case.
     exteriorMaterialStates.forEach(state => {
@@ -467,6 +464,13 @@ async function createViewer(host) {
       state.material.needsUpdate = true;
     });
     highlightedMaterials = [];
+
+    highlightOverlays.forEach(({ overlay, material }) => {
+      overlay.parent?.remove(overlay);
+      material.dispose();
+    });
+    highlightOverlays = [];
+
     if (selectionLight) {
       scene.remove(selectionLight);
       selectionLight = null;
@@ -475,8 +479,10 @@ async function createViewer(host) {
 
   function setHighlight(part, bounds) {
     clearHighlight();
-    const glowColor = new THREE.Color('#58c8ff');
-    getPartMeshes(part).forEach(mesh => {
+    const glowColor = new THREE.Color('#70d9ff');
+    const meshes = getPartMeshes(part);
+
+    meshes.forEach(mesh => {
       const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
       materials.forEach(material => {
         if (!material || !material.emissive) return;
@@ -486,14 +492,41 @@ async function createViewer(host) {
           originalEmissiveIntensity: material.emissiveIntensity ?? 1
         });
         material.emissive.copy(glowColor);
-        material.emissiveIntensity = 0.12;
+        material.emissiveIntensity = 0.22;
         material.needsUpdate = true;
       });
+
+      // Add a translucent copy of the selected surface itself. This makes the
+      // highlight visible even for GLB materials whose emissive response is weak.
+      // It follows the mesh transform and geometry; it is not a bounding cube.
+      if (mesh.parent && mesh.geometry) {
+        const overlayMaterial = new THREE.MeshBasicMaterial({
+          color: glowColor,
+          transparent: true,
+          opacity: 0.08,
+          blending: THREE.AdditiveBlending,
+          depthTest: true,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          toneMapped: false
+        });
+        const overlay = new THREE.Mesh(mesh.geometry, overlayMaterial);
+        overlay.name = `Soft selection glow - ${mesh.name}`;
+        overlay.position.copy(mesh.position);
+        overlay.quaternion.copy(mesh.quaternion);
+        overlay.scale.copy(mesh.scale).multiplyScalar(1.004);
+        overlay.renderOrder = 20;
+        overlay.frustumCulled = false;
+        overlay.castShadow = false;
+        overlay.receiveShadow = false;
+        mesh.parent.add(overlay);
+        highlightOverlays.push({ overlay, material: overlayMaterial });
+      }
     });
 
-    // A low-intensity point light adds a soft halo around the actual component;
-    // unlike the previous wireframe box, it does not draw a cube around it.
-    selectionLight = new THREE.PointLight(glowColor, 0.12, 38, 2);
+    if (!meshes.length) console.warn('No meshes matched selected component:', part);
+
+    selectionLight = new THREE.PointLight(glowColor, 0.28, 52, 2);
     selectionLight.position.copy(bounds.getCenter(new THREE.Vector3()));
     scene.add(selectionLight);
     selectionPulseStart = performance.now();
@@ -537,7 +570,7 @@ async function createViewer(host) {
 
     cameraAnimation = {
       start: performance.now(),
-      duration: 900,
+      duration: part.internal ? 480 : 900,
       fromPosition: camera.position.clone(),
       toPosition: destination,
       fromTarget: controls.target.clone(),
@@ -614,13 +647,16 @@ async function createViewer(host) {
       controls.target.lerpVectors(cameraAnimation.fromTarget, cameraAnimation.toTarget, eased);
       if (t >= 1) cameraAnimation = null;
     }
-    if (highlightedMaterials.length || selectionLight) {
-      // One calm pulse every 2.8 seconds; no rapid flashing.
+    if (highlightedMaterials.length || highlightOverlays.length || selectionLight) {
+      // One calm pulse every 2.8 seconds; selected physical surfaces gently glow.
       const pulse = (Math.sin(((now - selectionPulseStart) / 2800) * Math.PI * 2 - Math.PI / 2) + 1) / 2;
       highlightedMaterials.forEach(state => {
-        state.material.emissiveIntensity = 0.12 + pulse * 0.48;
+        state.material.emissiveIntensity = 0.18 + pulse * 0.62;
       });
-      if (selectionLight) selectionLight.intensity = 0.08 + pulse * 0.34;
+      highlightOverlays.forEach(({ material }) => {
+        material.opacity = 0.055 + pulse * 0.15;
+      });
+      if (selectionLight) selectionLight.intensity = 0.16 + pulse * 0.46;
     }
     controls.update();
     renderer.render(scene, camera);
