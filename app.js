@@ -176,16 +176,13 @@
     window.dispatchEvent(new CustomEvent('board:spin', { detail: { enabled: spin } }));
   });
 
-  $('#meet-explode')?.addEventListener('click', event => {
+  $('#meet-explode')?.addEventListener('click', () => {
+    // Show/Hide Internals only toggles exterior transparency. It does not
+    // select the ESP32-S3, change the expanded component, stop the spin, or
+    // move the camera. Selecting an internal component in the index still
+    // performs the separate zoom-and-highlight action via board:focus.
     internalsShown = !internalsShown;
-    if (internalsShown) {
-      spin = false;
-      $('#meet-spin').textContent = 'Resume spin';
-    }
     updateInternalsButton();
-    if (internalsShown) {
-      renderPart('mcu', false);
-    }
     window.dispatchEvent(new CustomEvent('board:internals', { detail: { show: internalsShown } }));
   });
 

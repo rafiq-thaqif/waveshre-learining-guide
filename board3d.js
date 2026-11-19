@@ -367,10 +367,11 @@ async function createViewer(host) {
     // Keep the simplified PCB within the physical enclosure footprint.
     // The original 156 x 90 mm board filled the mounting plate and appeared
     // to protrude beyond the enclosure in the transparent view.
-    internalGroup.scale.set(0.92, 1, 0.65);
-    // In the viewer's orientation, negative Z is toward the far/top edge.
-    // A small rearward shift plus a narrower depth keeps the PCB within the shell.
-    internalGroup.position.set(0, 0, -3.0);
+    // Fit the PCB inside the enclosure and move it farther toward the rear
+    // edge (the upper side in the default viewer angle). Reducing the depth
+    // slightly prevents the front edge from extending beyond the inner shell.
+    internalGroup.scale.set(0.92, 1, 0.55);
+    internalGroup.position.set(0, 0, -8.0);
     modelRoot.add(internalGroup);
     modelRoot.updateMatrixWorld(true);
   }
@@ -496,30 +497,34 @@ async function createViewer(host) {
         material.needsUpdate = true;
       });
 
-      // Add a translucent copy of the selected surface itself. This makes the
-      // highlight visible even for GLB materials whose emissive response is weak.
-      // It follows the mesh transform and geometry; it is not a bounding cube.
-      if (mesh.parent && mesh.geometry) {
+      // Overlay the selected mesh itself (not its bounding box). Add it to
+      // modelRoot with the mesh's complete world matrix so nested GLB objects
+      // such as terminals, ports and their sub-parts highlight in the right place.
+      if (mesh.geometry) {
+        mesh.updateWorldMatrix(true, false);
         const overlayMaterial = new THREE.MeshBasicMaterial({
           color: glowColor,
           transparent: true,
-          opacity: 0.08,
+          opacity: 0.10,
           blending: THREE.AdditiveBlending,
           depthTest: true,
           depthWrite: false,
           side: THREE.DoubleSide,
-          toneMapped: false
+          toneMapped: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -1
         });
         const overlay = new THREE.Mesh(mesh.geometry, overlayMaterial);
         overlay.name = `Soft selection glow - ${mesh.name}`;
-        overlay.position.copy(mesh.position);
-        overlay.quaternion.copy(mesh.quaternion);
-        overlay.scale.copy(mesh.scale).multiplyScalar(1.004);
-        overlay.renderOrder = 20;
+        overlay.matrixAutoUpdate = false;
+        overlay.matrix.copy(mesh.matrixWorld);
+        overlay.matrixWorldNeedsUpdate = true;
+        overlay.renderOrder = 50;
         overlay.frustumCulled = false;
         overlay.castShadow = false;
         overlay.receiveShadow = false;
-        mesh.parent.add(overlay);
+        modelRoot.add(overlay);
         highlightOverlays.push({ overlay, material: overlayMaterial });
       }
     });
@@ -610,10 +615,9 @@ async function createViewer(host) {
     });
 
     window.addEventListener('board:internals', event => {
-      const show = Boolean(event.detail?.show);
-      setInternals(show);
-      if (show) focusPart('mcu');
-      else resetView(false);
+      // The toolbar button is visibility-only: do not select a component,
+      // animate the camera, or reset the user's current view.
+      setInternals(Boolean(event.detail?.show));
     });
   }
 
@@ -651,12 +655,12 @@ async function createViewer(host) {
       // One calm pulse every 2.8 seconds; selected physical surfaces gently glow.
       const pulse = (Math.sin(((now - selectionPulseStart) / 2800) * Math.PI * 2 - Math.PI / 2) + 1) / 2;
       highlightedMaterials.forEach(state => {
-        state.material.emissiveIntensity = 0.18 + pulse * 0.62;
+        state.material.emissiveIntensity = 0.16 + pulse * 0.52;
       });
       highlightOverlays.forEach(({ material }) => {
-        material.opacity = 0.055 + pulse * 0.15;
+        material.opacity = 0.07 + pulse * 0.18;
       });
-      if (selectionLight) selectionLight.intensity = 0.16 + pulse * 0.46;
+      if (selectionLight) selectionLight.intensity = 0.12 + pulse * 0.34;
     }
     controls.update();
     renderer.render(scene, camera);
