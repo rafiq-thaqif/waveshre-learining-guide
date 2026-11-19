@@ -80,7 +80,6 @@
   // component name. Selecting a row also sends the matching camera focus.
   const list = $('#component-list');
   let selectedPart = null;
-  let spin = true;
   let internalsShown = false;
 
   list.innerHTML = componentGroups.map(([group, ids]) => `
@@ -122,6 +121,15 @@
     });
   }
 
+  function deselectSelectedPart() {
+    if (!selectedPart) return;
+    closeComponentDetails();
+    internalsShown = false;
+    updateInternalsButton();
+    // board:reset restores the default camera and automatically resumes spin.
+    window.dispatchEvent(new CustomEvent('board:reset'));
+  }
+
   function renderPart(id, focus = false) {
     const part = parts[id];
     if (!part) return;
@@ -138,8 +146,6 @@
 
     if (focus) {
       internalsShown = Boolean(part.internal);
-      spin = false;
-      $('#meet-spin').textContent = 'Resume spin';
       updateInternalsButton();
       window.dispatchEvent(new CustomEvent('board:focus', { detail: { id } }));
     }
@@ -150,30 +156,11 @@
     if (!button) return;
     const id = button.dataset.part;
     if (selectedPart === id) {
-      closeComponentDetails();
-      internalsShown = false;
-      spin = true;
-      $('#meet-spin').textContent = 'Pause spin';
-      updateInternalsButton();
-      window.dispatchEvent(new CustomEvent('board:reset'));
+      deselectSelectedPart();
       return;
     }
     renderPart(id, true);
     button.closest('.component-item')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  });
-
-  $('#meet-reset').addEventListener('click', () => {
-    spin = true;
-    internalsShown = false;
-    updateInternalsButton();
-    $('#meet-spin').textContent = 'Pause spin';
-    window.dispatchEvent(new CustomEvent('board:reset'));
-  });
-
-  $('#meet-spin').addEventListener('click', event => {
-    spin = !spin;
-    event.currentTarget.textContent = spin ? 'Pause spin' : 'Resume spin';
-    window.dispatchEvent(new CustomEvent('board:spin', { detail: { enabled: spin } }));
   });
 
   $('#meet-explode')?.addEventListener('click', () => {

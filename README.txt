@@ -1,21 +1,17 @@
-WAVESHARE MEET THE BOARD - INTERNAL POSITION AND VISIBILITY FIX
+WAVESHARE MEET THE BOARD UPDATE
 
-Replace these two files in the ROOT of your GitHub repository:
-  1. board3d.js
-  2. app.js
+Replace these four files in the root of your GitHub repository:
+- board3d.js
+- app.js
+- index.html
+- Waveshare-Digital-Twin.html
 
-Do not upload this ZIP itself. Extract it first, then upload the two files
-using GitHub -> Add file -> Upload files, replacing the existing root files.
+Keep assets/Final_Waveshare.glb, styles.css, .nojekyll, firmware/, and other assets unchanged.
 
-What changed:
-- The simplified 3D PCB assembly is shifted farther toward the upper/rear
-  side of the enclosure and made slightly shallower so it stays inside.
-- Component highlighting overlays the selected mesh using its full world
-  transform. This applies to exterior and interior component meshes, not a box.
-- The Show/Hide Internals toolbar button only toggles exterior transparency.
-  It does not select the ESP32-S3, zoom the camera, reset the camera, or stop spin.
-- Selecting an internal component in the component index still reveals the
-  internal view, zooms to that component and highlights it.
-
-After committing, wait for GitHub Pages to publish and press Ctrl+Shift+R.
-The existing GLB, index.html, styles.css, firmware folder and .nojekyll remain.
+Changes:
+- Stretch only the antenna-side portion of the internal PCB assembly, keeping the I/O-side edge fixed.
+- Add a metallic gold SMA connector stem and foot between the antenna and enclosure.
+- Include the added connector in antenna highlighting and exterior transparency.
+- Remove Reset View and Pause Spin buttons.
+- Clicking the currently selected component again collapses its description, restores the exterior, resets the camera, and resumes rotation.
+- Show Internals remains a camera-independent transparency toggle.

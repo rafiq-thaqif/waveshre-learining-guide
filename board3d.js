@@ -364,17 +364,39 @@ async function createViewer(host) {
   if (mode === 'meet') {
     internalGroup = createInternalModel();
     internalGroup.visible = false;
-    // Keep the simplified PCB within the physical enclosure footprint.
-    // The original 156 x 90 mm board filled the mounting plate and appeared
-    // to protrude beyond the enclosure in the transparent view.
-    // Fit the PCB inside the enclosure and move it farther toward the rear
-    // edge (the upper side in the default viewer angle). Reducing the depth
-    // slightly prevents the front edge from extending beyond the inner shell.
-    internalGroup.scale.set(0.92, 1, 0.55);
-    internalGroup.position.set(0, 0, -8.0);
+    // Keep the I/O-side edge fixed while stretching only the antenna-side
+    // (negative Z) half of the internal assembly. This lengthens the PCB
+    // toward the antenna without moving the already-aligned input/output side.
+    // Previous transform: scaleZ 0.55, positionZ -8.0 -> +Z edge at 16.75 mm.
+    // New transform: scaleZ 0.68, positionZ -13.85 -> same +Z edge,
+    // with the antenna-side edge extending farther toward the enclosure end.
+    internalGroup.scale.set(0.92, 1, 0.68);
+    internalGroup.position.set(0, 0, -13.85);
     modelRoot.add(internalGroup);
     modelRoot.updateMatrixWorld(true);
   }
+
+  // Add a visible brass SMA connector stem beneath the antenna. The existing
+  // antenna assembly sits around X=63.2, Z=-46.2; the stem bridges the top of
+  // the mounting plate (Y≈5 mm) to the existing antenna bulkhead/collar.
+  const antennaConnectorMeshes = [];
+  const antennaConnectorGroup = new THREE.Group();
+  antennaConnectorGroup.name = 'Added gold antenna connector';
+  modelRoot.add(antennaConnectorGroup);
+  const antennaGold = mat('#d2a13a', 0.24, 0.9);
+  const antennaGoldDark = mat('#a97820', 0.3, 0.86);
+  const antennaConnectorStem = addCylinder(
+    antennaConnectorGroup,
+    'Gold antenna connector stem',
+    2.9, 6.5, [63.15, 8.25, -46.15], antennaGold, 40
+  );
+  const antennaConnectorFoot = addCylinder(
+    antennaConnectorGroup,
+    'Gold antenna connector foot',
+    3.9, 1.0, [63.15, 5.55, -46.15], antennaGoldDark, 40
+  );
+  antennaConnectorMeshes.push(antennaConnectorStem, antennaConnectorFoot);
+  modelRoot.updateMatrixWorld(true);
 
   glbRoot.traverse(object => {
     if (!object.isMesh) return;
@@ -396,6 +418,20 @@ async function createViewer(host) {
     if (HIDE_PREFIXES.some(prefix => object.name.startsWith(prefix))) {
       hiddenObjectStates.push({ object, visible: object.visible });
     }
+  });
+
+  // Treat the added antenna connector as part of the exterior so it fades
+  // together with the enclosure when the internal view is enabled.
+  antennaConnectorMeshes.forEach(object => {
+    exteriorObjectStates.push({ object, castShadow: object.castShadow, receiveShadow: object.receiveShadow });
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    materials.forEach(material => exteriorMaterialStates.push({
+      material,
+      transparent: material.transparent,
+      opacity: material.opacity,
+      depthWrite: material.depthWrite,
+      alphaTest: material.alphaTest
+    }));
   });
 
   function setInternals(show) {
@@ -437,13 +473,21 @@ async function createViewer(host) {
       });
     }
 
+    if (id === 'antenna' && antennaConnectorMeshes.length) {
+      antennaConnectorMeshes.forEach(mesh => {
+        mesh.updateWorldMatrix(true, false);
+        bounds.union(new THREE.Box3().setFromObject(mesh));
+      });
+      found += antennaConnectorMeshes.length;
+    }
+
     if (found > 0 && !bounds.isEmpty()) return bounds;
     console.warn(`No GLB meshes found for component '${id}'. Using its calibrated fallback position.`);
     const fallback = new THREE.Vector3(...(part.fallback || [0, 22, 0]));
     return new THREE.Box3(fallback.clone().addScalar(-5), fallback.clone().addScalar(5));
   }
 
-  function getPartMeshes(part) {
+  function getPartMeshes(part, id) {
     const meshes = [];
     if (part.internal && internalGroup) {
       const component = internalGroup.getObjectByName(part.internalName);
@@ -455,6 +499,7 @@ async function createViewer(host) {
         if (object.isMesh && part.prefixes.some(prefix => object.name.startsWith(prefix))) meshes.push(object);
       });
     }
+    if (id === 'antenna') meshes.push(...antennaConnectorMeshes);
     return meshes;
   }
 
@@ -478,10 +523,10 @@ async function createViewer(host) {
     }
   }
 
-  function setHighlight(part, bounds) {
+  function setHighlight(part, bounds, id) {
     clearHighlight();
     const glowColor = new THREE.Color('#70d9ff');
-    const meshes = getPartMeshes(part);
+    const meshes = getPartMeshes(part, id);
 
     meshes.forEach(mesh => {
       const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -558,7 +603,7 @@ async function createViewer(host) {
     const bounds = getPartBounds(part, id);
     const target = bounds.getCenter(new THREE.Vector3());
     const size = bounds.getSize(new THREE.Vector3());
-    setHighlight(part, bounds);
+    setHighlight(part, bounds, id);
 
     let direction;
     if (part.internal) {
@@ -608,10 +653,6 @@ async function createViewer(host) {
     window.addEventListener('board:reset', () => {
       setInternals(false);
       resetView(true);
-    });
-
-    window.addEventListener('board:spin', event => {
-      controls.autoRotate = Boolean(event.detail?.enabled);
     });
 
     window.addEventListener('board:internals', event => {
